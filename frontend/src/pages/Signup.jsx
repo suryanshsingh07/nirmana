@@ -68,10 +68,16 @@ export default function Signup() {
     try {
       const { user: newUser } = await signup(email, password);
 
-      // Set display name on the Firebase user profile
-      await updateProfile(newUser, {
-        displayName: displayName.trim(),
-      });
+      // Set display name on the Firebase user profile if available
+      if (newUser && typeof newUser.getIdToken === 'function') {
+        try {
+          await updateProfile(newUser, {
+            displayName: displayName.trim(),
+          });
+        } catch (profileErr) {
+          console.warn('Could not update Firebase profile display name:', profileErr);
+        }
+      }
 
       navigate('/dashboard');
     } catch (err) {

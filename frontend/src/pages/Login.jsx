@@ -108,6 +108,19 @@ export default function Login() {
           >
             {loading ? 'Logging in...' : 'Log In →'}
           </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            onClick={() => {
+              login('alex.johnson@university.edu', 'demo1234');
+              navigate('/dashboard');
+            }}
+            style={{ marginTop: '0.75rem', width: '100%', background: '#f3e8ff', color: '#6b21a8', border: '2px solid #1a1a1a' }}
+          >
+            ⚡ Quick Demo Access (1-Click)
+          </Button>
         </form>
 
         <div className="auth-footer">

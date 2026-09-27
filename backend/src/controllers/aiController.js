@@ -1,4 +1,9 @@
-import { generateAIAdjustedPlan, generatePlanInsights } from '../services/geminiService.js';
+import {
+  generateAIAdjustedPlan,
+  generatePlanInsights,
+  extractDeadlinesFromText,
+  diffTimetables,
+} from '../services/geminiService.js';
 
 export async function handleGetAIPlan(req, res) {
   try {
@@ -25,6 +30,36 @@ export async function handleGetAIInsights(req, res) {
     return res.status(500).json({
       success: false,
       error: 'Failed to generate AI insights',
+      message: err.message,
+    });
+  }
+}
+
+export async function handleExtractDeadlines(req, res) {
+  try {
+    const { announcements = [] } = req.body;
+    const result = await extractDeadlinesFromText(announcements);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('Error extracting deadlines:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to extract deadlines',
+      message: err.message,
+    });
+  }
+}
+
+export async function handleDiffTimetable(req, res) {
+  try {
+    const { originalSessions = [], revisedSessions = [], filters = {} } = req.body;
+    const result = diffTimetables(originalSessions, revisedSessions, filters);
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    console.error('Error diffing timetables:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to diff timetables',
       message: err.message,
     });
   }
