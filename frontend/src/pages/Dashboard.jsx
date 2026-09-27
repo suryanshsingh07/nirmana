@@ -135,14 +135,19 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="dashboard-ai-card">
-          <div className="ai-card-content">
-            <span className="ai-icon">🤖</span>
-            <div className="ai-text">
-              <span className="ai-label">AI Planning Coach:</span>
-              <p className={insightLoading ? 'pulse' : ''}>"{insight}"</p>
+        <div className="dashboard-pileup-hero">
+          <div className="hero-content">
+            <span className="hero-icon">🔥</span>
+            <div>
+              <h3 className="hero-title">Deadline Pile-Up Detector</h3>
+              <p className="hero-desc">
+                Paste 6 messy announcements, verify ambiguous dates, and detect exact 48-hour deadline conflicts.
+              </p>
             </div>
           </div>
+          <Button variant="primary" onClick={() => navigate('/deadline-pileup')}>
+            Launch Detector →
+          </Button>
         </div>
       </section>
 
