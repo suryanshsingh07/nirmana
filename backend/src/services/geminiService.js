@@ -6,6 +6,11 @@ import {
   MAX_STUDY_HOURS,
   MIN_STUDY_HOURS,
 } from './planningEngine.js';
+import {
+  extractAllAnnouncementsRuleBased,
+  analyzeDeadlineAmbiguity,
+  extractExplicitTime,
+} from './deadlineExtractionEngine.js';
 
 const genAI = config.geminiApiKey ? new GoogleGenerativeAI(config.geminiApiKey) : null;
 
@@ -159,3 +164,102 @@ export async function generatePlanInsights(tasks = [], dailyHours = 4) {
     return 'Keep up the good work! Focus on one task at a time.';
   }
 }
+
+/**
+ * Extract structured deadline information from up to 6 messy announcements using Gemini AI
+ * with full fallback to deterministic extraction engine.
+ *
+ * @param {Array<string>} announcements - Array of announcement strings
+ * @returns {Promise<Array<Object>>}
+ */
+export async function extractDeadlinesFromAnnouncements(announcements = []) {
+  if (!genAI) {
+    console.log('Gemini API key not configured. Using deterministic extraction engine.');
+    return extractAllAnnouncementsRuleBased(announcements);
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    const prompt = `You are an expert AI Data Extractor for academic announcements.
+Your job is to extract structured deadline data from messy, unstructured student announcements.
+
+INSTRUCTIONS:
+1. For each announcement, extract:
+   - "title": Assignment or lab or project title (e.g., "DBMS Assignment 2", "OS Lab Report").
+   - "subject": Course or subject name (e.g., "Database Management Systems", "Operating Systems").
+   - "deadlineDate": Exact deadline date in YYYY-MM-DD format if present/calculated. If year is missing or ambiguous, provide best guess in YYYY-MM-DD.
+   - "deadlineTime": Time if explicitly provided in announcement (HH:MM in 24-hour format, e.g. "10:00" or "23:59"). If no time provided, return null.
+   - "hasExplicitTime": boolean true if exact time (e.g. 10:00 AM) was explicitly written in text, false otherwise.
+   - "supportingSource": The exact original text sentence or snippet from the announcement supporting this extracted deadline/title.
+
+2. CRITICAL - DO NOT INVENT INFORMATION:
+   If a field cannot be confidently extracted, set it to empty string or null.
+
+3. ANNOUNCEMENTS TO PROCESS:
+${JSON.stringify(announcements, null, 2)}
+
+Respond ONLY with valid JSON array containing objects matching this schema:
+[
+  {
+    "title": "...",
+    "subject": "...",
+    "deadlineDate": "YYYY-MM-DD" or null,
+    "deadlineTime": "HH:MM" or null,
+    "hasExplicitTime": false,
+    "supportingSource": "..."
+  }
+]`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+    const cleanJson = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const extractedList = JSON.parse(cleanJson);
+
+    // Run deterministic ambiguity analysis on AI results for 100% safety
+    return announcements.map((origText, idx) => {
+      const aiItem = extractedList[idx] || {};
+      const cleanOrig = (origText || '').trim();
+
+      if (!cleanOrig) {
+        return extractAllAnnouncementsRuleBased([''])[0];
+      }
+
+      // Check original text for ambiguity using rule engine
+      const explicitTime = extractExplicitTime(cleanOrig) || aiItem.deadlineTime || null;
+      const hasExplicitTime = !!explicitTime;
+      const ambiguityInfo = analyzeDeadlineAmbiguity(cleanOrig, aiItem.deadlineDate, explicitTime);
+
+      const title = aiItem.title || `Assignment ${idx + 1}`;
+      const subject = aiItem.subject || 'General';
+      let supportingSource = aiItem.supportingSource || cleanOrig;
+      if (supportingSource.length > 150) supportingSource = supportingSource.slice(0, 147) + '...';
+
+      let deadlineDate = aiItem.deadlineDate || ambiguityInfo.suggestedDate || '';
+
+      return {
+        id: `announcement_${idx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        announcementIndex: idx,
+        originalText: cleanOrig,
+        title: title,
+        subject: subject,
+        deadlineDate: deadlineDate,
+        deadlineTime: explicitTime,
+        hasExplicitTime: hasExplicitTime,
+        supportingSource: supportingSource,
+        status: ambiguityInfo.status,
+        ambiguityType: ambiguityInfo.ambiguityType,
+        detectedPhrase: ambiguityInfo.detectedPhrase || null,
+        suggestedDate: ambiguityInfo.suggestedDate || null,
+        suggestedYear: ambiguityInfo.suggestedYear || null,
+        conflictingDates: ambiguityInfo.conflictingDates || null,
+        ambiguousOptions: ambiguityInfo.ambiguousOptions || null,
+        message: ambiguityInfo.message || null,
+      };
+    });
+  } catch (err) {
+    console.error('Gemini extraction failed, falling back to rule engine:', err.message);
+    return extractAllAnnouncementsRuleBased(announcements);
+  }
+}
+

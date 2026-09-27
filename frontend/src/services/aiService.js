@@ -1,4 +1,5 @@
 import { apiRequest } from './api';
+import { extractSingleAnnouncementClient } from '../utils/deadlineEngine';
 
 /**
  * AI Service for academic coaching and planning insights.
@@ -40,3 +41,25 @@ export const getPlanInsights = async (tasks = [], dailyHours = 4) => {
     return '✅ Your schedule looks balanced. Stick to the daily breakdown!';
   }
 };
+
+/**
+ * Call backend to extract structured deadlines from 6 announcements.
+ * Falls back to client-side extraction engine if backend fails or is offline.
+ */
+export const extractDeadlinesFromAnnouncements = async (announcements = []) => {
+  try {
+    const response = await apiRequest('/api/ai/extract-deadlines', {
+      method: 'POST',
+      body: JSON.stringify({ announcements }),
+    });
+
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    throw new Error('Invalid backend response');
+  } catch (err) {
+    console.warn('Backend extraction unavailable, using client-side engine:', err.message);
+    return announcements.map((text, idx) => extractSingleAnnouncementClient(text, idx));
+  }
+};
+

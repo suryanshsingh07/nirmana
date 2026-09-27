@@ -1,4 +1,8 @@
-import { generateAIAdjustedPlan, generatePlanInsights } from '../services/geminiService.js';
+import {
+  generateAIAdjustedPlan,
+  generatePlanInsights,
+  extractDeadlinesFromAnnouncements,
+} from '../services/geminiService.js';
 
 export async function handleGetAIPlan(req, res) {
   try {
@@ -29,3 +33,19 @@ export async function handleGetAIInsights(req, res) {
     });
   }
 }
+
+export async function handleExtractDeadlines(req, res) {
+  try {
+    const { announcements = [] } = req.body;
+    const extractedList = await extractDeadlinesFromAnnouncements(announcements);
+    return res.status(200).json({ success: true, data: extractedList });
+  } catch (err) {
+    console.error('Error extracting deadlines:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to extract deadlines',
+      message: err.message,
+    });
+  }
+}
+

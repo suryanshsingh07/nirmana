@@ -4,6 +4,7 @@ import './Sidebar.css';
 import logo from "../../assets/logo.png";
 
 const navItems = [
+  { path: '/deadline-pileup', icon: '🔥', label: 'Deadline Pile-Up' },
   { path: '/dashboard', icon: '📊', label: 'Dashboard' },
   { path: '/tasks', icon: '📝', label: 'My Tasks' },
   { path: '/today', icon: '📅', label: "Today's Plan" },
